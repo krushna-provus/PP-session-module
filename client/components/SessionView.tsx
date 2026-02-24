@@ -16,6 +16,7 @@ import HostControls from "@/components/HostControls";
 import { useSessionState } from "@/hooks/useSessionState";
 import { useVoteHandlers } from "@/hooks/useVoteHandlers";
 import { sortVotes } from "@/utils/voteCalculations";
+import { getVoteIndex } from "@/utils/voteCalculations";
 
 interface FieldData {
   status: { name: string };
@@ -65,6 +66,8 @@ export default function SessionView({
     setError,
     setUserVote,
     setSuccessMessage,
+    meetLink,
+    setMeetLink,
   } = useSessionState({
     socket,
     sessionId,
@@ -124,10 +127,35 @@ export default function SessionView({
       : []
   );
 
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+
+  const generateMeetLink = () => {
+    const meetingName = `PokerPlanning-${sessionId.substring(0, 8)}`;
+    const link = `https://meet.google.com/new?title=${encodeURIComponent(meetingName)}`;
+    // keep generated link local to host until they choose to send
+    setGeneratedLink(link);
+  };
+
+  const sendMeetToParticipants = () => {
+    if (!generatedLink) return;
+    try {
+      socket?.emit("broadcast-meet-link", sessionId, generatedLink);
+      setSuccessMessage("Meet link sent to participants.");
+    } catch {
+      setError("Failed to send meet link to participants.");
+    }
+  };
+
+  let discussionNeeded = false;
+  if (revealedVotes && minVote && maxVote) {
+    const diff = getVoteIndex(maxVote) - getVoteIndex(minVote);
+    discussionNeeded = diff > 4;
+  }
+
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
       <div className="max-w-6xl mx-auto">
-        <AlertBanners error={error} successMessage={successMessage} />
+        
 
         <SessionHeader
           sessionId={sessionId}
@@ -183,6 +211,17 @@ export default function SessionView({
 
             <VoteSummaryDisplay revealedVotes={revealedVotes} voteSummary={voteSummary} />
 
+            <AlertBanners
+              error={error}
+              successMessage={successMessage}
+              discussionNeeded={discussionNeeded}
+              isHost={isHost}
+              onGenerateMeet={generateMeetLink}
+              generatedLink={generatedLink}
+              meetLink={meetLink}
+              onSendToParticipants={sendMeetToParticipants}
+            />
+            
             <JiraEstimationConfirmation
               currentIssue={(currentIssue as IssueData | null)}
               isHost={isHost}
@@ -199,13 +238,18 @@ export default function SessionView({
               isVotingOpen={isVotingOpen}
               revealedVotes={revealedVotes}
               onRevealVotes={handleRevealVotes}
-              onResetVotes={handleResetVotes}
+              onResetVotes={() => {
+                handleResetVotes();
+                setGeneratedLink(null);
+                setSuccessMessage("");
+              }}
             />
           </div>
 
+
           {/* Participants Sidebar */}
           <div>
-            <ParticipantList participants={participants} revealedVotes={revealedVotes} />
+            <ParticipantList participants={participants} revealedVotes={revealedVotes} meetLink={meetLink} isHost={isHost} />
           </div>
         </div>
       </div>

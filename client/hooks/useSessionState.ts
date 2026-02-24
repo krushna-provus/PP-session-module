@@ -28,6 +28,7 @@ interface SessionStateData {
   currentIssue: IssueData | null;
   isVotingOpen: boolean;
   revealedVotes: boolean;
+  meetLink?: string | null;
 }
 
 interface UseSessionStateProps {
@@ -56,6 +57,7 @@ export const useSessionState = ({ socket, sessionId, userName, initialSession }:
   const [userVote, setUserVote] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
+  const [meetLink, setMeetLink] = useState<string | null>(null);
 
   const handleSessionUpdated = useCallback((data: SessionStateData) => {
     if (data) {
@@ -64,6 +66,7 @@ export const useSessionState = ({ socket, sessionId, userName, initialSession }:
       setCurrentIssue(data.currentIssue || null);
       setIsVotingOpen(data.isVotingOpen || false);
       setRevealedVotes(data.revealedVotes || false);
+      setMeetLink((data as SessionStateData).meetLink || null);
 
       const userParticipant = (data.participants || []).find((p) => p.name === userName);
       if (userParticipant) {
@@ -91,6 +94,12 @@ export const useSessionState = ({ socket, sessionId, userName, initialSession }:
     socket.on("session-updated", handleSessionUpdated);
     socket.on("host-disconnected", handleHostDisconnected);
     socket.on("issue-estimation-updated", handleIssueEstimationUpdated);
+    socket.on("meet-link", (url: string | null) => {
+      setMeetLink(url || null);
+    });
+    socket.on("receive-meet-link", (data: { meetLink?: string | null }) => {
+      setMeetLink((data && data.meetLink) || null);
+    });
 
     try {
       socket.emit("get-session", sessionId, (data: Record<string, unknown>) => {
@@ -106,6 +115,8 @@ export const useSessionState = ({ socket, sessionId, userName, initialSession }:
       socket.off("session-updated", handleSessionUpdated);
       socket.off("host-disconnected", handleHostDisconnected);
       socket.off("issue-estimation-updated", handleIssueEstimationUpdated);
+      socket.off("meet-link");
+      socket.off("receive-meet-link");
     };
   }, [socket, sessionId, handleSessionUpdated]);
 
@@ -118,6 +129,7 @@ export const useSessionState = ({ socket, sessionId, userName, initialSession }:
     userVote,
     error,
     successMessage,
+    meetLink,
     setParticipants,
     setCurrentStory,
     setCurrentIssue,
@@ -126,6 +138,7 @@ export const useSessionState = ({ socket, sessionId, userName, initialSession }:
     setUserVote,
     setError,
     setSuccessMessage,
+    setMeetLink,
     handleSessionUpdated,
   };
 };

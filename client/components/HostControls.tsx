@@ -6,6 +6,7 @@ interface HostControlsProps {
   revealedVotes: boolean;
   onRevealVotes: () => void;
   onResetVotes: () => void;
+  // meeting controls moved to AlertBanners (host-only)
 }
 
 export default function HostControls({
@@ -32,6 +33,8 @@ export default function HostControls({
       >
         Reset Round
       </button>
+
+      
     </div>
   );
 }
