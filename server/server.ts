@@ -35,6 +35,7 @@ interface Session {
   revealedVotes: boolean;
   boardId?: number;
   sprintId?: number;
+  meetLink?: string | null;
 }
 
 // Storage
@@ -177,8 +178,62 @@ io.on("connection", (socket) => {
       p.vote = undefined;
     });
 
+    // clear any meet link on reset and notify clients
+    session.meetLink = undefined;
+    io.to(sessionId).emit("meet-link", null);
+
     io.to(sessionId).emit("session-updated", getSessionState(sessionId));
   });
+
+  // Host can set a meet link for the session (stored and broadcast)
+  socket.on("meet-link", (sessionId: string, url: string | null) => {
+    const session = sessions.get(sessionId);
+    if (!session || session.hostId !== socket.id) return;
+    session.meetLink = url || null;
+    io.to(sessionId).emit("meet-link", session.meetLink || null);
+    io.to(sessionId).emit("session-updated", getSessionState(sessionId));
+  });
+
+  // Host can explicitly broadcast meet link to participants
+  socket.on("broadcast-meet-link", (sessionId: string, meetLink: string,callback) => {
+    // const session = sessions.get(sessionId);
+    // if (!session || session.hostId !== socket.id) return;
+    // session.meetLink = url;
+    // io.to(sessionId).emit("meet-link", url);
+    // // also emit full session state so clients that rely on session-updated receive the meetLink
+    // io.to(sessionId).emit("session-updated", getSessionState(sessionId));
+    console.log("[HOST] Send Meet Link to Participants - Socket ID:", socket.id, "Session ID:", sessionId);
+    const session = sessions.get(sessionId);
+
+    if (!session) {
+      console.error("[HOST] Session not found:", sessionId);
+      callback?.({ success: false, error: "Session not found" });
+      return;
+    }
+
+    if (session.hostId !== socket.id) {
+      console.error("[HOST] Not authorized - Expected host:", session.hostId, "Got:", socket.id);
+      callback?.({ success: false, error: "Not authorized" });
+      return;
+    }
+
+    console.log("[HOST] Broadcasting meet link to session:", sessionId);
+    console.log("[HOST] Meet link:", meetLink);
+    console.log("[HOST] Number of participants:", Array.from(session.participants.values()).map(p => p.name));
+    
+    // Check room members
+    const room = io.sockets.adapter.rooms.get(sessionId);
+    console.log("[HOST] Sockets in room", sessionId, ":", room ? Array.from(room) : "ROOM NOT FOUND");
+    
+    // Send callback to host immediately
+    callback?.({ success: true });
+    
+    // Broadcast to all participants (including host)
+    console.log("[HOST] Emitting receive-meet-link event to room:", sessionId, "with data:", { meetLink });
+    io.to(sessionId).emit("receive-meet-link", { meetLink });
+    console.log("[HOST] Broadcast complete");
+  });
+
 
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.id}`);
@@ -319,6 +374,7 @@ function getSessionState(sessionId: string) {
     isVotingOpen: session.isVotingOpen,
     participants,
     revealedVotes: session.revealedVotes,
+    meetLink: session.meetLink || null,
   };
 }
 
