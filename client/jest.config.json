@@ -1,0 +1,41 @@
+{
+  "preset": "ts-jest",
+  "testEnvironment": "jsdom",
+  "roots": [
+    "<rootDir>"
+  ],
+  "testMatch": [
+    "**/__tests__/**/*.test.ts?(x)",
+    "**/tests/**/*.test.ts?(x)",
+    "**/?(*.)+(spec|test).ts?(x)"
+  ],
+  "moduleFileExtensions": [
+    "ts",
+    "tsx",
+    "js",
+    "jsx"
+  ],
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/$1"
+  },
+  "setupFilesAfterEnv": [
+    "<rootDir>/jest.setup.ts"
+  ],
+  "collectCoverageFrom": [
+    "**/*.{ts,tsx}",
+    "!**/*.test.{ts,tsx}",
+    "!**/node_modules/**",
+    "!**/.next/**"
+  ],
+  "transform": {
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "jsx": "react-jsx",
+          "jsxImportSource": "react"
+        }
+      }
+    ]
+  }
+}
